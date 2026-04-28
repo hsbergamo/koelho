@@ -1,1 +1,814 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>DinoNotas: Velocidade Progressiva</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
 
+        body {
+            background: #1a1a1a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', 'Monaco', monospace;
+        }
+
+        .game-container {
+            background: #f9f9f9;
+            border-radius: 2rem;
+            padding: 1.5rem 2rem 2rem;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            background-color: #ffffff;
+            pointer-events: none;
+        }
+
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            font-weight: bold;
+            color: #111;
+            background: #eaeaea;
+            padding: 0.5rem 1rem;
+            border-radius: 3rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            pointer-events: none;
+        }
+
+        .score-box {
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            background: #000;
+            color: #0f0;
+            padding: 0.2rem 0.8rem;
+            border-radius: 2rem;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+
+        .speed-box {
+            font-size: 0.9rem;
+            background: #333;
+            color: #FFD966;
+            padding: 0.2rem 0.8rem;
+            border-radius: 2rem;
+            font-family: monospace;
+        }
+
+        .question-badge {
+            background: #000;
+            color: #FFD966;
+            padding: 0.5rem 1.2rem;
+            border-radius: 2rem;
+            font-size: 1.3rem;
+            font-weight: bold;
+            text-align: center;
+            letter-spacing: 1px;
+            box-shadow: 0 0 0 2px #FFD966, 0 0 0 4px #000;
+            min-width: 220px;
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+
+        .question-badge.blinking {
+            animation: pulse 0.6s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); background: #000; color: #FFD966; }
+            50% { transform: scale(1.05); background: #FFD966; color: #000; box-shadow: 0 0 0 4px #FFD966, 0 0 0 6px #000; }
+            100% { transform: scale(1); background: #000; color: #FFD966; }
+        }
+
+        .key-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.8rem;
+            margin-top: 1.2rem;
+            margin-bottom: 0.5rem;
+            pointer-events: auto;
+        }
+
+        .note-btn {
+            background: #ececec;
+            border: 2px solid #aaa;
+            font-size: 1.6rem;
+            font-weight: bold;
+            font-family: monospace;
+            width: 70px;
+            padding: 0.6rem 0;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.05s linear;
+            color: #111;
+            box-shadow: 0 3px 0 #888;
+        }
+
+        .note-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #888;
+        }
+
+        .note-btn:disabled {
+            opacity: 0.5;
+            filter: grayscale(0.3);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .correct-highlight {
+            background: #000 !important;
+            color: #fff !important;
+            border-color: #FFD966 !important;
+            transform: scale(0.96);
+        }
+
+        .restart-message {
+            text-align: center;
+            margin-top: 0.8rem;
+            font-size: 0.9rem;
+            font-weight: bold;
+            padding: 0.4rem;
+            border-radius: 2rem;
+            transition: all 0.2s;
+            pointer-events: none;
+        }
+        
+        .restart-message.active {
+            background: #FFD966;
+            color: #000;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        
+        .restart-message.inactive {
+            background: #c0c0c0;
+            color: #666;
+            opacity: 0.6;
+        }
+
+        footer {
+            font-size: 0.7rem;
+            text-align: center;
+            margin-top: 0.5rem;
+            color: #555;
+            pointer-events: none;
+        }
+
+        @media (max-width: 560px) {
+            .note-btn {
+                width: 55px;
+                font-size: 1.3rem;
+            }
+            .game-container {
+                padding: 1rem;
+            }
+            .question-badge {
+                font-size: 1rem;
+                min-width: 160px;
+                padding: 0.4rem 0.8rem;
+            }
+            .score-box {
+                font-size: 1.1rem;
+            }
+            .speed-box {
+                font-size: 0.7rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="game-container" id="gameContainer">
+    <div class="info-panel">
+        <span class="question-badge" id="questionDisplay">🎵 Carregando...</span>
+        <div class="speed-box" id="speedDisplay">🐌 2.2</div>
+        <div class="score-box">⏱️ <span id="scoreValue">0.000</span> s</div>
+    </div>
+    <canvas id="gameCanvas" width="800" height="250" style="width:100%; height:auto; max-width:800px; aspect-ratio:800/250"></canvas>
+    <div class="key-grid" id="noteButtonsContainer">
+        <!-- Botões serão gerados e embaralhados -->
+    </div>
+    <div class="restart-message inactive" id="restartMsg">💥 CLIQUE AQUI PARA REINICIAR 💥</div>
+    <footer>🎹 ACERTE a nota para PULAR! Velocidade: começa lenta (2.2) e aumenta até o máximo (6.2).</footer>
+</div>
+
+<script>
+    (function(){
+        // ---------- NOTAS MUSICAIS ----------
+        const NOTAS_ORIGINAL = ["DÓ", "RÉ", "MI", "FÁ", "SOL", "LÁ", "SI"];
+        const DIRECOES = ["ANTES", "DEPOIS"];
+        
+        // ---------- ELEMENTOS DOM ----------
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreSpan = document.getElementById('scoreValue');
+        const speedDisplaySpan = document.getElementById('speedDisplay');
+        const questionDisplay = document.getElementById('questionDisplay');
+        const restartMsgDiv = document.getElementById('restartMsg');
+        const gameContainer = document.getElementById('gameContainer');
+        
+        // Dimensões fixas
+        const CANVAS_W = 800;
+        const CANVAS_H = 250;
+        canvas.width = CANVAS_W;
+        canvas.height = CANVAS_H;
+        
+        // ---------- ÁUDIO ----------
+        let audioCtx = null;
+        function initAudio() {
+            if(!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        function playTone(type) {
+            if(!audioCtx) return;
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            let freq = 660;
+            let duration = 0.2;
+            
+            switch(type) {
+                case 'jump':
+                    freq = 880;
+                    duration = 0.18;
+                    break;
+                case 'gameover':
+                    freq = 180;
+                    duration = 0.6;
+                    break;
+                case 'correct':
+                    freq = 740;
+                    duration = 0.2;
+                    break;
+                case 'wrong':
+                    freq = 280;
+                    duration = 0.15;
+                    break;
+                default:
+                    freq = 660;
+            }
+            
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.start();
+            osc.stop(now + duration);
+        }
+        
+        // Som de erro curto para fim de jogo (adicional)
+        function playGameOverSound() {
+            if(!audioCtx) return;
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            
+            // Primeiro som grave (impacto)
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.connect(gain1);
+            gain1.connect(audioCtx.destination);
+            osc1.type = 'sawtooth';
+            osc1.frequency.value = 150;
+            gain1.gain.setValueAtTime(0.25, now);
+            gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+            osc1.start();
+            osc1.stop(now + 0.3);
+            
+            // Segundo som mais agudo (erro)
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.type = 'sine';
+            osc2.frequency.value = 220;
+            gain2.gain.setValueAtTime(0.15, now + 0.05);
+            gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+            osc2.start();
+            osc2.stop(now + 0.45);
+        }
+        
+        // ---------- ESTADO DO JOGO ----------
+        let gameRunning = true;
+        let animationId = null;
+        
+        // Tempo real para o contador
+        let gameStartTime = null;
+        let realTimeSeconds = 0;
+        
+        // DINO
+        let dino = {
+            x: 70,
+            y: 0,
+            width: 28,
+            height: 32,
+            ySpeed: 0,
+            isJumping: false,
+            groundedY: 0,
+            canJump: false
+        };
+        
+        // OBSTÁCULO - velocidade progressiva
+        let obstacle = {
+            x: CANVAS_W,
+            width: 20,
+            height: 28,
+            active: false,
+            speed: 2.2,           // velocidade inicial mais lenta
+            baseSpeed: 2.2,
+            maxSpeed: 6.2
+        };
+        
+        // PERGUNTA ATUAL
+        let currentQuestion = {
+            baseNote: "MI",
+            direction: "DEPOIS",
+            correctAnswer: ""
+        };
+        
+        let hasCorrectlyAnsweredForCurrentObstacle = false;
+        let framesSinceLastObstacle = 0;
+        let spawnGapFrames = 120;     // mais espaçado no início
+        let questionAnnouncedForNextObstacle = false;
+        
+        // Botões embaralhados
+        let shuffledNotes = [];
+        
+        // ---------- FUNÇÕES AUXILIARES ----------
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+        
+        function shuffleNotes() {
+            shuffledNotes = [...NOTAS_ORIGINAL];
+            shuffleArray(shuffledNotes);
+        }
+        
+        function generateRandomQuestion() {
+            const randomBaseIndex = Math.floor(Math.random() * NOTAS_ORIGINAL.length);
+            const randomDir = DIRECOES[Math.floor(Math.random() * DIRECOES.length)];
+            let baseNote = NOTAS_ORIGINAL[randomBaseIndex];
+            let direction = randomDir;
+            let correct = "";
+            const idx = NOTAS_ORIGINAL.indexOf(baseNote);
+            if(direction === "DEPOIS") {
+                correct = (idx === NOTAS_ORIGINAL.length-1) ? NOTAS_ORIGINAL[0] : NOTAS_ORIGINAL[idx+1];
+            } else {
+                correct = (idx === 0) ? NOTAS_ORIGINAL[NOTAS_ORIGINAL.length-1] : NOTAS_ORIGINAL[idx-1];
+            }
+            return { baseNote, direction, correctAnswer: correct };
+        }
+        
+        function updateQuestionUI(blink = false) {
+            const dirSymbol = currentQuestion.direction === "DEPOIS" ? "→" : "←";
+            questionDisplay.innerHTML = `🎵 ${currentQuestion.baseNote} ${dirSymbol} ? (${currentQuestion.direction})`;
+            if(blink) {
+                questionDisplay.classList.add('blinking');
+                setTimeout(() => {
+                    questionDisplay.classList.remove('blinking');
+                }, 600);
+            }
+        }
+        
+        function updateSpeedDisplay() {
+            speedDisplaySpan.innerHTML = `⚡ ${obstacle.speed.toFixed(1)}`;
+            // Muda ícone baseado na velocidade
+            if(obstacle.speed < 3.0) speedDisplaySpan.innerHTML = `🐌 ${obstacle.speed.toFixed(1)}`;
+            else if(obstacle.speed < 4.5) speedDisplaySpan.innerHTML = `🏃 ${obstacle.speed.toFixed(1)}`;
+            else speedDisplaySpan.innerHTML = `💨 ${obstacle.speed.toFixed(1)}`;
+        }
+        
+        // Atualizar velocidade progressiva baseada no tempo real
+        function updateProgressiveSpeed() {
+            // Velocidade aumenta de 2.2 até 6.2 ao longo de ~40 segundos
+            let targetSpeed = 2.2 + (realTimeSeconds / 12);
+            obstacle.speed = Math.min(obstacle.maxSpeed, targetSpeed);
+            updateSpeedDisplay();
+        }
+        
+        function updateTimerDisplay() {
+            if(gameRunning && gameStartTime !== null) {
+                realTimeSeconds = (performance.now() - gameStartTime) / 1000;
+                scoreSpan.innerText = realTimeSeconds.toFixed(3);
+                // Atualiza velocidade progressivamente
+                updateProgressiveSpeed();
+            }
+        }
+        
+        function announceQuestionBeforeObstacle() {
+            if(!questionAnnouncedForNextObstacle && !obstacle.active) {
+                updateQuestionUI(true);
+                questionAnnouncedForNextObstacle = true;
+            }
+        }
+        
+        function resetForNewObstacle() {
+            hasCorrectlyAnsweredForCurrentObstacle = false;
+            dino.canJump = false;
+            questionAnnouncedForNextObstacle = false;
+            updateQuestionUI(false);
+        }
+        
+        function spawnNewObstacle() {
+            obstacle.active = true;
+            obstacle.x = CANVAS_W;
+            framesSinceLastObstacle = 0;
+            resetForNewObstacle();
+        }
+        
+        function performJump() {
+            if(!gameRunning) return false;
+            if(!dino.canJump) return false;
+            if(!dino.isJumping && dino.y >= dino.groundedY - 0.5) {
+                dino.ySpeed = -9.2;
+                dino.isJumping = true;
+                playTone('jump');
+                return true;
+            }
+            return false;
+        }
+        
+        function handleNoteClick(clickedNote) {
+            if(!gameRunning) return;
+            
+            if(!obstacle.active) {
+                if(audioCtx) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = 550;
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+0.1);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime+0.08);
+                }
+                return;
+            }
+            
+            if(clickedNote === currentQuestion.correctAnswer) {
+                hasCorrectlyAnsweredForCurrentObstacle = true;
+                dino.canJump = true;
+                playTone('correct');
+                highlightCorrectButton(clickedNote);
+                performJump();
+                
+                questionDisplay.style.backgroundColor = "#FFFFFF";
+                questionDisplay.style.color = "#000000";
+                setTimeout(() => {
+                    if(gameRunning) {
+                        questionDisplay.style.backgroundColor = "#000";
+                        questionDisplay.style.color = "#FFD966";
+                    }
+                }, 350);
+            } else {
+                playTone('wrong');
+                const btns = document.querySelectorAll('.note-btn');
+                for(let btn of btns) {
+                    if(btn.innerText === clickedNote) {
+                        btn.style.backgroundColor = "#ff9999";
+                        setTimeout(() => {
+                            btn.style.backgroundColor = "";
+                        }, 150);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        function highlightCorrectButton(note) {
+            const btns = document.querySelectorAll('.note-btn');
+            for(let btn of btns) {
+                if(btn.innerText === note) {
+                    btn.classList.add('correct-highlight');
+                    setTimeout(() => {
+                        btn.classList.remove('correct-highlight');
+                    }, 200);
+                    break;
+                }
+            }
+        }
+        
+        function checkCollisionAndGameOver() {
+            if(!gameRunning) return true;
+            if(!obstacle.active) return false;
+            
+            const dinoLeft = dino.x;
+            const dinoRight = dino.x + dino.width;
+            const dinoTop = dino.y;
+            const dinoBottom = dino.y + dino.height;
+            
+            const obsLeft = obstacle.x;
+            const obsRight = obstacle.x + obstacle.width;
+            const obsTop = CANVAS_H - obstacle.height;
+            const obsBottom = CANVAS_H;
+            
+            if(dinoRight > obsLeft && dinoLeft < obsRight && dinoBottom > obsTop) {
+                gameRunning = false;
+                playGameOverSound();  // som especial de game over
+                if(animationId) cancelAnimationFrame(animationId);
+                drawGameOverScreen();
+                restartMsgDiv.classList.remove('inactive');
+                restartMsgDiv.classList.add('active');
+                enableDisableButtons(false);
+                return true;
+            }
+            return false;
+        }
+        
+        function enableDisableButtons(enable) {
+            const btns = document.querySelectorAll('.note-btn');
+            btns.forEach(btn => {
+                if(enable) btn.disabled = false;
+                else btn.disabled = true;
+            });
+        }
+        
+        function updateGame() {
+            if(!gameRunning) return;
+            
+            // Gravidade e salto
+            if(dino.isJumping) {
+                dino.ySpeed += 0.55;
+                dino.y += dino.ySpeed;
+                if(dino.y >= dino.groundedY) {
+                    dino.y = dino.groundedY;
+                    dino.isJumping = false;
+                    dino.ySpeed = 0;
+                }
+            } else {
+                dino.y = dino.groundedY;
+            }
+            
+            // Anunciar pergunta antes do obstáculo
+            if(!obstacle.active) {
+                let currentGap = Math.max(75, spawnGapFrames - Math.floor(realTimeSeconds / 5));
+                let framesToSpawn = currentGap - framesSinceLastObstacle;
+                if(framesToSpawn <= 50 && framesToSpawn > 0 && !questionAnnouncedForNextObstacle) {
+                    announceQuestionBeforeObstacle();
+                }
+            }
+            
+            // Movimento do obstáculo (usa velocidade progressiva)
+            if(obstacle.active) {
+                obstacle.x -= obstacle.speed;
+                if(obstacle.x + obstacle.width < 0) {
+                    obstacle.active = false;
+                    hasCorrectlyAnsweredForCurrentObstacle = false;
+                    dino.canJump = false;
+                    currentQuestion = generateRandomQuestion();
+                    updateQuestionUI(false);
+                    questionAnnouncedForNextObstacle = false;
+                } else {
+                    checkCollisionAndGameOver();
+                }
+            }
+            
+            // Spawn de novo obstáculo
+            if(!obstacle.active && gameRunning) {
+                framesSinceLastObstacle++;
+                let currentGap = Math.max(70, spawnGapFrames - Math.floor(realTimeSeconds / 5));
+                if(framesSinceLastObstacle >= currentGap) {
+                    spawnNewObstacle();
+                }
+            }
+            
+            // Ajuste do spawn gap baseado no tempo
+            if(spawnGapFrames > 68 && realTimeSeconds > 15) {
+                spawnGapFrames = Math.max(68, spawnGapFrames - 0.5);
+            }
+        }
+        
+        function draw() {
+            if(!ctx) return;
+            ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            
+            // Chão
+            ctx.beginPath();
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 2;
+            ctx.moveTo(0, CANVAS_H-6);
+            ctx.lineTo(CANVAS_W, CANVAS_H-6);
+            ctx.stroke();
+            ctx.fillStyle = "#E8E8E8";
+            ctx.fillRect(0, CANVAS_H-5, CANVAS_W, 5);
+            
+            // Dino
+            const dinoY = dino.y;
+            ctx.fillStyle = "#111111";
+            ctx.fillRect(dino.x, dinoY, dino.width, dino.height);
+            ctx.fillStyle = "#F5F5F5";
+            ctx.beginPath();
+            ctx.arc(dino.x + dino.width-8, dinoY+9, 5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#000";
+            ctx.beginPath();
+            ctx.arc(dino.x + dino.width-7, dinoY+8, 2.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = "#222";
+            ctx.fillRect(dino.x+6, dinoY-6, 6, 6);
+            ctx.fillRect(dino.x+15, dinoY-4, 5, 5);
+            
+            // Obstáculo
+            if(obstacle.active) {
+                const obsX = obstacle.x;
+                const obsY = CANVAS_H - obstacle.height;
+                ctx.fillStyle = "#222222";
+                ctx.fillRect(obsX, obsY, obstacle.width, obstacle.height);
+                ctx.fillStyle = "#CCCCCC";
+                ctx.fillRect(obsX+4, obsY+6, obstacle.width-8, 4);
+                ctx.fillRect(obsX+4, obsY+15, obstacle.width-8, 4);
+                ctx.fillStyle = "#000";
+                ctx.beginPath();
+                ctx.arc(obsX+obstacle.width/2, obsY-5, 6, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "#FFF";
+                ctx.beginPath();
+                ctx.arc(obsX+obstacle.width/2, obsY-5, 3, 0, Math.PI*2);
+                ctx.fill();
+            }
+            
+            // Dica flutuante
+            if(obstacle.active && gameRunning) {
+                ctx.font = "bold 14px 'Courier New'";
+                ctx.fillStyle = "#000000";
+                let questText = `${currentQuestion.baseNote} ${currentQuestion.direction === "DEPOIS" ? "→" : "←"} ?`;
+                ctx.fillText(questText, obstacle.x + 2, obstacle.y - 12);
+                ctx.font = "italic 9px monospace";
+                ctx.fillStyle = "#2c2c2c";
+                if(!hasCorrectlyAnsweredForCurrentObstacle) {
+                    ctx.fillText("ACERTE A NOTA PARA PULAR", obstacle.x + 2, obstacle.y + obstacle.height+12);
+                } else {
+                    ctx.fillText("✔ NOTA CORRETA! CLIQUE PARA PULAR", obstacle.x + 2, obstacle.y + obstacle.height+12);
+                }
+            } else if(!obstacle.active && gameRunning && questionAnnouncedForNextObstacle) {
+                ctx.font = "italic 11px monospace";
+                ctx.fillStyle = "#555";
+                ctx.fillText("🎵 Novo desafio se aproxima...", CANVAS_W-190, 30);
+            }
+            
+            if(!gameRunning) {
+                ctx.font = "bold 26px 'Courier New'";
+                ctx.fillStyle = "#000000";
+                ctx.fillText("💀 GAME OVER 💀", CANVAS_W/2-110, CANVAS_H/2-18);
+                ctx.font = "12px monospace";
+                ctx.fillStyle = "#333";
+                ctx.fillText("CLIQUE NA MENSAGEM ABAIXO PARA REINICIAR", CANVAS_W/2-175, CANVAS_H/2+18);
+            }
+        }
+        
+        function drawGameOverScreen() {
+            draw();
+        }
+        
+        function gameLoop() {
+            if(!gameRunning) {
+                drawGameOverScreen();
+                return;
+            }
+            
+            updateTimerDisplay();
+            updateGame();
+            draw();
+            
+            animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        function restartGame() {
+            if(animationId) cancelAnimationFrame(animationId);
+            
+            gameRunning = true;
+            gameStartTime = performance.now();
+            realTimeSeconds = 0;
+            updateTimerDisplay();
+            
+            // Reseta velocidade para o mínimo
+            obstacle.speed = 2.2;
+            obstacle.baseSpeed = 2.2;
+            updateSpeedDisplay();
+            
+            dino.ySpeed = 0;
+            dino.isJumping = false;
+            dino.y = dino.groundedY;
+            dino.canJump = false;
+            
+            obstacle.active = false;
+            obstacle.x = CANVAS_W;
+            framesSinceLastObstacle = 40;
+            hasCorrectlyAnsweredForCurrentObstacle = false;
+            questionAnnouncedForNextObstacle = false;
+            
+            currentQuestion = generateRandomQuestion();
+            updateQuestionUI(false);
+            
+            questionDisplay.style.backgroundColor = "#000";
+            questionDisplay.style.color = "#FFD966";
+            
+            spawnGapFrames = 120;
+            
+            restartMsgDiv.classList.remove('active');
+            restartMsgDiv.classList.add('inactive');
+            
+            enableDisableButtons(true);
+            
+            shuffleNotes();
+            rebuildButtons();
+            
+            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            
+            animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        function rebuildButtons() {
+            const container = document.getElementById('noteButtonsContainer');
+            container.innerHTML = '';
+            shuffledNotes.forEach(nota => {
+                const btn = document.createElement('button');
+                btn.innerText = nota;
+                btn.classList.add('note-btn');
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    initAudio();
+                    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                    handleNoteClick(nota);
+                });
+                container.appendChild(btn);
+            });
+            enableDisableButtons(true);
+        }
+        
+        function init() {
+            shuffleNotes();
+            rebuildButtons();
+            
+            dino.groundedY = CANVAS_H - dino.height - 4;
+            dino.y = dino.groundedY;
+            dino.canJump = false;
+            obstacle.active = false;
+            obstacle.x = CANVAS_W;
+            obstacle.speed = 2.2;
+            framesSinceLastObstacle = 40;
+            gameRunning = true;
+            hasCorrectlyAnsweredForCurrentObstacle = false;
+            questionAnnouncedForNextObstacle = false;
+            
+            gameStartTime = performance.now();
+            realTimeSeconds = 0;
+            updateTimerDisplay();
+            updateSpeedDisplay();
+            
+            currentQuestion = generateRandomQuestion();
+            updateQuestionUI(false);
+            
+            initAudio();
+            
+            restartMsgDiv.classList.remove('active');
+            restartMsgDiv.classList.add('inactive');
+            
+            restartMsgDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if(!gameRunning) {
+                    restartGame();
+                }
+            });
+            
+            animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        init();
+    })();
+</script>
+</body>
+</html>
